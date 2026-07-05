@@ -89,7 +89,9 @@ Windows 11 ARM VM through the Splunk Universal Forwarder.
   | stats count by Account_Name, host
   | where count > 3
   ```
-- *Evidence:* T1110_a.png
+- *Evidence:* [Logs](T1110_a.png)
+- [Stats](T1110_b.png)
+- [Successful logins](T1110_S.png)
 - *Triage:* [true/false positive? next investigative step — check for a
   following 4624 success, source IP, account targeted, recommended response.]
 
