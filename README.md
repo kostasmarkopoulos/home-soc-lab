@@ -24,7 +24,7 @@ real attack techniques, the full path from **attack → log evidence → detecti
 │   ┌──────────────────────────┐    logs :9997     ┌──────────────────────────┐   │
 │   │ Sysmon + Universal Fwdr  │ ────────────────▶ │  Search & detections     │   │
 │   └──────────────────────────┘                    └──────────────────────────┘   │
-│              forwarder points at the host gateway (192.168.64.1:9997)            │
+│              forwarder points at the host gateway (x.x.x.x:9997)            │
 └──────────────────────────────────────────────────────────────────────────────────┘
 ```
 
