@@ -89,11 +89,11 @@ Windows 11 ARM VM through the Splunk Universal Forwarder.
   | stats count by Account_Name, host
   | where count > 3
   ```
-- *Evidence:* [Logs](T1110_a.png)
-- [Stats](T1110_b.png)
-- [Successful logins](T1110_S.png)
-- *Triage:* [true/false positive? next investigative step — check for a
-  following 4624 success, source IP, account targeted, recommended response.]
+- *Evidence:*
+- ![Logs](T1110_a.png)
+- ![Stats](T1110_b.png)
+- *Triage:* [Multiple 4625 failures from a single account in a short window indicate a brute-force attempt. Next step: check for a subsequent EventCode 4624 (successful logon) from the same account to determine if the attack succeeded, and review the source workstation.]
+- ![](T1110_S.png)
 
 ---
 
