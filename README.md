@@ -128,6 +128,7 @@ search (SPL) that catches it, evidence, and triage notes.
 - **Evidence:**
 
   ![Encoded PowerShell detected via Sysmon](T1059.001a.png)
+  ![Encoded command in CommandLine field](T1059.001b.png)
 
 - **Payload decode (triage step):** decoded the Base64 to reveal the true command:
   ```
@@ -135,7 +136,7 @@ search (SPL) that catches it, evidence, and triage notes.
   ```
   Result: `Write-Host "hacked"`
 
-  ![Decoded payload](T1059.001b.png)
+  ![Decoded payload](T1059.001c.png)
 
 - **Triage:** Encoded PowerShell (`-EncodedCommand` / `-enc`) is a common
   defense-evasion technique — the encoding hides intent from casual log review.
@@ -148,11 +149,14 @@ search (SPL) that catches it, evidence, and triage notes.
 ### 3. New Local Account Created — T1136
 
 - **Attack:** created a new local account and granted it administrator rights, a
-  common persistence mechanism:
+  common persistence mechanism (both commands completed successfully):
   ```
   net user hacker Password123! /add
   net localgroup administrators hacker /add
   ```
+
+  ![Account creation commands run in the VM](T1136b.png)
+
 - **Detection (SPL):**
   ```
   index=main source="WinEventLog:Security" EventCode=4720
@@ -163,7 +167,7 @@ search (SPL) that catches it, evidence, and triage notes.
   reminder that Splunk field names depend on parsing and aren't universal.)*
 - **Evidence:**
 
-  ![New account creation event (4720)](T1136a.png)
+  ![New account creation event (4720) in Splunk](T1136a.png)
 
 - **Triage:** A new local account (`hacker`) was created and immediately added to
   the Administrators group. Unexpected account creation is a persistence
@@ -181,6 +185,9 @@ search (SPL) that catches it, evidence, and triage notes.
   ```
   certutil.exe -urlcache -split -f https://www.example.com/index.html downloaded.txt
   ```
+
+  ![certutil download attempts in the VM](T1105b.png)
+
 - **Detection (SPL):**
   ```
   index=main source="WinEventLog:Microsoft-Windows-Sysmon/Operational" EventCode=1
@@ -189,20 +196,23 @@ search (SPL) that catches it, evidence, and triage notes.
   ```
 - **Evidence:**
 
-  ![certutil LOLBin download detected](T1105a.png)
+  ![certutil LOLBin download detected in Splunk](T1105a.png)
 
-- **Defense-in-depth observation:** Windows Defender actively blocked the
-  network download (behavioural block on certutil reaching out to a URL). This
-  demonstrated two controls interacting — a **preventive** control (Defender)
-  stopping execution, and a **detective** control (Sysmon/Splunk) capturing the
-  attempt. Real SOCs run both: prevention stops what it can, detection catches
-  what gets through or what prevention misses.
+- **Defense-in-depth observation:** Windows Defender initially **blocked** the
+  execution (`Access is denied`) via a behavioural block on certutil reaching a
+  URL — a preventive control doing its job. After running from a lab folder the
+  process **executed**; it then returned `HTTP_E_STATUS_NOT_FOUND (404)` because
+  the test URL had no file at that path. The key point for detection: certutil
+  **launched**, so Sysmon captured the process-creation event and the detection
+  fired regardless of the download's HTTP result. This demonstrated a
+  **preventive** control (Defender) and a **detective** control (Sysmon/Splunk)
+  operating together.
 - **Triage:** `certutil` invoked with `-urlcache` and a URL is a known LOLBin
   pattern for pulling in additional tooling. Because it abuses a trusted signed
   binary, the detection keys on the *combination* of certutil + download
   arguments rather than certutil alone (which admins use legitimately). Triage:
-  identify the URL and downloaded file, hash and scan the file, check
-  `ParentImage`, and determine whether it was legitimate admin activity.
+  identify the URL and any downloaded file, hash and scan it, check `ParentImage`,
+  and determine whether it was legitimate admin activity.
 
 ---
 
@@ -237,7 +247,3 @@ search (SPL) that catches it, evidence, and triage notes.
 - Convert saved searches into scheduled alerts (would require Splunk Enterprise
   or a switch to Elastic/Sentinel, since Splunk Free lacks scheduled alerting)
 - Run a honeypot and analyze real-world attack traffic
-
-- Run the four attacks above and document each detection with SPL + screenshot + triage
-- Map detection coverage with the MITRE ATT&CK Navigator
-- Add a honeypot and analyze real-world attack traffic
