@@ -73,10 +73,10 @@ Windows 11 ARM VM through the Splunk Universal Forwarder.
 
 | # | Technique | MITRE ID | Status |
 |---|---|---|---|
-| 1 | Brute-force login | T1110 | ⬜ Planned |
-| 2 | Encoded PowerShell | T1059.001 | ⬜ Planned |
-| 3 | New local account created | T1136 | ⬜ Planned |
-| 4 | LOLBin download (certutil) | T1105 | ⬜ Planned |
+| 1 | Brute-force login | T1110 |
+| 2 | Encoded PowerShell | T1059.001 |
+| 3 | New local account created | T1136 |
+| 4 | LOLBin download (certutil) | T1105 |
 
 ### Example detection format (to be filled in)
 
@@ -87,9 +87,9 @@ Windows 11 ARM VM through the Splunk Universal Forwarder.
   ```
   index=main source="WinEventLog:Security" EventCode=4625
   | stats count by Account_Name, host
-  | where count > 5
+  | where count > 3
   ```
-- *Evidence:* `screenshots/t1110-detection.png`
+- *Evidence:* `t1110_a.png`
 - *Triage:* [true/false positive? next investigative step — check for a
   following 4624 success, source IP, account targeted, recommended response.]
 
