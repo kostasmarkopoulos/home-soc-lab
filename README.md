@@ -47,13 +47,13 @@ real attack techniques, the full path from **attack → log evidence → detecti
 
 **Proof of ingestion — Sysmon process-creation events (EventCode 1) in Splunk:**
 
-![Sysmon EventCode 1 events in Splunk](splunk1.png)
+![Sysmon EventCode 1 events in Splunk](screenshots/splunk1.png)
 
 Confirmed 430+ Sysmon EventCode 1 (process creation) events with full
 `CommandLine`, `Image`, and `Hashes` fields extracted, forwarded from a
 Windows 11 ARM VM through the Splunk Universal Forwarder.
 
-![Sysmon logging locally in Event Viewer](sysmon1.png)
+![Sysmon logging locally in Event Viewer](screenshots/sysmon1.png)
 
 > **Troubleshooting note:** Sysmon logs initially failed to forward — the
 > Universal Forwarder returned `errorCode=5` (access denied) when subscribing to
@@ -91,8 +91,8 @@ search (SPL) that catches it, evidence, and triage notes.
   ```
 - **Evidence:**
 
-  ![Brute-force failed logon events](T1110_a.png)
-  ![Brute-force stats by account](T1110_b.png)
+  ![Brute-force failed logon events](screenshots/T1110_a.png)
+  ![Brute-force stats by account](screenshots/T1110_b.png)
 
 - **Investigation — did it succeed?** Pivoted from the failures (4625) to look
   for a matching success (4624) from the same account:
@@ -102,7 +102,7 @@ search (SPL) that catches it, evidence, and triage notes.
   | table _time, EventCode, Account_Name, Logon_Type, host
   ```
 
-  ![Success/failure timeline for the targeted account](T1110_S.png)
+  ![Success/failure timeline for the targeted account](screenshots/T1110_S.png)
 
 - **Triage:** Multiple 4625 (failed logon) events from a single account in a
   short window indicate a brute-force attempt. Pivoted to EventCode 4624 to
@@ -127,8 +127,8 @@ search (SPL) that catches it, evidence, and triage notes.
   ```
 - **Evidence:**
 
-  ![Encoded PowerShell detected via Sysmon](T1059.001a.png)
-  ![Encoded command in CommandLine field](T1059.001b.png)
+  ![Encoded PowerShell detected via Sysmon](screenshots/T1059.001a.png)
+  ![Encoded command in CommandLine field](screenshots/T1059.001b.png)
 
 - **Payload decode (triage step):** decoded the Base64 to reveal the true command:
   ```
@@ -136,7 +136,7 @@ search (SPL) that catches it, evidence, and triage notes.
   ```
   Result: `Write-Host "hacked"`
 
-  ![Decoded payload](T1059.001c.png)
+  ![Decoded payload](screenshots/T1059.001c.png)
 
 - **Triage:** Encoded PowerShell (`-EncodedCommand` / `-enc`) is a common
   defense-evasion technique — the encoding hides intent from casual log review.
@@ -155,7 +155,7 @@ search (SPL) that catches it, evidence, and triage notes.
   net localgroup administrators hacker /add
   ```
 
-  ![Account creation commands run in the VM](T1136b.png)
+  ![Account creation commands run in the VM](screenshots/T1136b.png)
 
 - **Detection (SPL):**
   ```
@@ -167,7 +167,7 @@ search (SPL) that catches it, evidence, and triage notes.
   reminder that Splunk field names depend on parsing and aren't universal.)*
 - **Evidence:**
 
-  ![New account creation event (4720) in Splunk](T1136a.png)
+  ![New account creation event (4720) in Splunk](screenshots/T1136a.png)
 
 - **Triage:** A new local account (`hacker`) was created and immediately added to
   the Administrators group. Unexpected account creation is a persistence
@@ -186,7 +186,7 @@ search (SPL) that catches it, evidence, and triage notes.
   certutil.exe -urlcache -split -f https://www.example.com/index.html downloaded.txt
   ```
 
-  ![certutil download attempts in the VM](T1105b.png)
+  ![certutil download attempts in the VM](screenshots/T1105b.png)
 
 - **Detection (SPL):**
   ```
@@ -196,7 +196,7 @@ search (SPL) that catches it, evidence, and triage notes.
   ```
 - **Evidence:**
 
-  ![certutil LOLBin download detected in Splunk](T1105a.png)
+  ![certutil LOLBin download detected in Splunk](screenshots/T1105a.png)
 
 - **Defense-in-depth observation:** Windows Defender initially **blocked** the
   execution (`Access is denied`) via a behavioural block on certutil reaching a
