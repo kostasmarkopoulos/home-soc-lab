@@ -71,7 +71,7 @@ Windows 11 ARM VM through the Splunk Universal Forwarder.
 > technique ID, the Splunk search (SPL) that catches it, a screenshot of the
 > detection firing, and triage notes.
 
-| # | Technique | MITRE ID | Status |
+| # | Technique | MITRE ID |
 |---|---|---|---|
 | 1 | Brute-force login | T1110 |
 | 2 | Encoded PowerShell | T1059.001 |
@@ -89,7 +89,7 @@ Windows 11 ARM VM through the Splunk Universal Forwarder.
   | stats count by Account_Name, host
   | where count > 3
   ```
-- *Evidence:* `t1110_a.png`
+- *Evidence:* `T1110_a.png`
 - *Triage:* [true/false positive? next investigative step — check for a
   following 4624 success, source IP, account targeted, recommended response.]
 
