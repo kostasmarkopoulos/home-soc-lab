@@ -5,8 +5,9 @@ workflow of a SOC analyst: ingesting endpoint logs into a SIEM, simulating
 adversary techniques, writing detections, and triaging the resulting alerts.
 
 > **Status:** Log ingestion complete (Security, System, and Sysmon flowing into
-> Splunk). Four detections built and documented across two log sources, mapped to
-> MITRE ATT&CK.
+> Splunk). Four detections built and documented across two log sources, plus a
+> full end-to-end investigation of a simulated multi-stage intrusion. All mapped
+> to MITRE ATT&CK.
 
 ---
 
@@ -105,10 +106,10 @@ search (SPL) that catches it, evidence, and triage notes.
   ![Success/failure timeline for the targeted account](screenshots/T1110_S.png)
 
 - **Triage:** Multiple 4625 (failed logon) events from a single account in a
-  short window indicate a brute-force attempt. Pivoted to EventCode 4624 to
-  determine the outcome and reviewed `Logon_Type` and source host. If a
-  successful logon follows the failures, the attack succeeded — disable the
-  account, isolate the origin host, and investigate activity since the logon.
+  short window indicate a brute-force attempt. Pivoting to EventCode 4624 showed
+  **no successful logon followed the failures — the brute-force attempt did not
+  succeed.** Verdict: true positive attempt, unsuccessful. Recommended action:
+  review the source host and continue monitoring the targeted accounts.
 
 ---
 
@@ -170,10 +171,12 @@ search (SPL) that catches it, evidence, and triage notes.
   ![New account creation event (4720) in Splunk](screenshots/T1136a.png)
 
 - **Triage:** A new local account (`hacker`) was created and immediately added to
-  the Administrators group. Unexpected account creation is a persistence
-  technique. Confirm whether the action was authorized IT activity; if not,
-  disable the account, review what it has done since creation, and investigate
-  how the creating account was accessed.
+  the Administrators group. The raw event shows the `mikapa` account (Subject)
+  created the `hacker` account (New Account) — the "who created whom" detail ties
+  this to the same attacker context seen in the investigation below. Unexpected
+  account creation is a persistence technique. Confirm whether the action was
+  authorized IT activity; if not, disable the account, review what it has done
+  since creation, and investigate how the creating account was accessed.
 - **Cleanup:** removed the test account afterward — `net user hacker /delete`.
 
 ---
@@ -216,6 +219,61 @@ search (SPL) that catches it, evidence, and triage notes.
 
 ---
 
+## Investigation — Simulated Multi-Stage Intrusion
+
+After building the individual detections, I ran a full simulated intrusion and
+investigated it end to end — the way an analyst works a real alert. This shows
+the second half of the job: not just writing detections, but pivoting across log
+sources to reconstruct an attack and reach a verdict.
+
+**Scenario:** a chained attack (execution → discovery → credential access →
+persistence), all under the `mikapa` account on host DESKTOP-IDMRUOJ.
+
+**Alert received:** suspicious access to `lsass.exe` — potential credential
+dumping (T1003).
+
+**Step 1 — the primary alert source returned nothing.** The obvious search
+(Sysmon EventCode 10, ProcessAccess to lsass) came back empty, because EventCode
+10 was not enabled in the Sysmon config.
+
+![EventCode 10 search returns zero results](screenshots/incident-eventcode10-empty.PNG)
+
+**Step 2 — pivoted to corroborating evidence.** Rather than close the alert, I
+pivoted to process-creation logs (EventCode 1) and identified the credential-dump
+tool by its command line: `rundll32.exe ... comsvcs.dll, MiniDump`.
+
+![comsvcs MiniDump command found via process creation](screenshots/incident-comsvcs.PNG)
+
+**Step 3 — reconstructed the timeline.** Filtered to the host and `mikapa`
+account (excluding forwarder/SYSTEM noise) to see the full attack in order.
+
+![Reconstructed attacker timeline](screenshots/incident-timeline.PNG)
+
+The timeline revealed the complete attack chain:
+
+| Stage | Activity | MITRE |
+|---|---|---|
+| Execution | PowerShell spawning PowerShell | T1059.001 |
+| Discovery | `whoami`, `net user`, `ipconfig`, `systeminfo` | T1033 / T1087 |
+| Discovery | `tasklist`, `findstr lsass` (locating LSASS) | T1057 |
+| Credential Access | `rundll32 comsvcs.dll, MiniDump <PID> lsass.dmp` | T1003.001 |
+| Persistence | `schtasks /create /tn "Updater" ... /ru System` | T1053.005 |
+
+**Verdict:** True Positive, High/Critical severity — a coordinated sequence of
+execution, discovery, credential access, and persistence on a single host.
+
+**Recommended containment:** isolate the host, delete the malicious scheduled
+task (`schtasks /delete /tn "Updater" /f`), reset credentials (LSASS access may
+have exposed cached credentials), review the `mikapa` account, and hunt other
+hosts for the same indicators (comsvcs MiniDump, the `Updater` task, the
+discovery command burst).
+
+**Key lesson:** when the primary alert source returned nothing, pivoting to a
+different log source confirmed the attack — a real analyst finds another angle
+rather than closing the alert.
+
+---
+
 ## What I learned
 
 - **Sysmon dramatically enriches Windows logging** — default Windows logs don't
@@ -224,6 +282,9 @@ search (SPL) that catches it, evidence, and triage notes.
 - **Detection engineering is about suspicious *combinations*, not single events**
   — certutil alone is benign; certutil + a URL is the signal. Same with
   PowerShell + `-enc`.
+- **Investigative pivoting** — when the primary alert source (EventCode 10)
+  returned nothing, pivoted to process-creation logs to find corroborating
+  evidence rather than closing the alert.
 - **How log forwarding works end to end** — the Universal Forwarder ships
   specified channels (`inputs.conf`) to the Splunk indexer over port 9997.
 - **VM-to-host networking** — on UTM's shared network, the forwarder had to point
@@ -233,10 +294,9 @@ search (SPL) that catches it, evidence, and triage notes.
   Sysmon channel issue was solved by reading the forwarder's own logs rather than
   guessing, then fixing the service's logon account.
 - **Field names aren't universal** — expected fields came back empty on the 4720
-  event; found the real values by expanding the raw event. This "the field is
-  empty, let me look at the raw log" habit is core investigative work.
+  event; found the real values by expanding the raw event.
 - **Defense-in-depth in action** — observed a preventive control (Defender) and a
-  detective control (Sysmon) interacting during the certutil test.
+  detective control (Sysmon) interacting during the certutil and LSASS tests.
 - **Running Windows 11 on Apple Silicon** — required the ARM64 Windows build,
   ARM64 Sysmon, and the virtio/SPICE guest drivers for networking.
 
